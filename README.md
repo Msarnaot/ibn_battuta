@@ -2,11 +2,27 @@
 
 Named after the famous medieval Muslim scholar and traveler Ibn Battuta, this system automates the tedious process of finding flights, hotels, and making travel plans for business trips.
 
-## 🎯 Quick Links
+## 🚀 Quick Start (UI Only - No CLI!)
 
-- **[Web UI Guide](WEB_UI_README.md)** - Beautiful web interface setup
-- **[Quick Start Guide](QUICKSTART.md)** - Get running in 5 minutes
-- **CLI Usage** - See below
+**[→ GETTING_STARTED_UI.md](GETTING_STARTED_UI.md)** - Everything through the web interface!
+
+```bash
+# 1. Start server
+python api.py
+
+# 2. In another terminal, start UI
+cd frontend && npm start
+
+# 3. Open browser to http://localhost:3000
+# 4. That's it! Everything else is point-and-click
+```
+
+## 📚 Documentation
+
+- **[Getting Started (UI)](GETTING_STARTED_UI.md)** - ⭐ **START HERE** - No CLI needed!
+- **[Favorites & Saved Places](FAVORITES_AND_SAVED_PLACES.md)** - Advanced memory features
+- **[Web UI Guide](WEB_UI_README.md)** - Complete web interface docs
+- **[Quick Start (CLI)](QUICKSTART.md)** - Command-line usage (optional)
 
 ## Overview
 

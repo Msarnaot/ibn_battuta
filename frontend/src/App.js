@@ -7,11 +7,16 @@ import {
   Box,
   AppBar,
   Toolbar,
-  Typography
+  Typography,
+  IconButton,
+  Badge
 } from '@mui/material';
 import FlightIcon from '@mui/icons-material/Flight';
+import SettingsIcon from '@mui/icons-material/Settings';
+import FavoriteIcon from '@mui/icons-material/Favorite';
 import SearchForm from './components/SearchForm';
 import SearchResults from './components/SearchResults';
+import SettingsDrawer from './components/SettingsDrawer';
 
 const theme = createTheme({
   palette: {
@@ -36,6 +41,7 @@ function App() {
   const [searchResults, setSearchResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleSearch = async (searchParams) => {
     setLoading(true);
@@ -74,11 +80,23 @@ function App() {
             <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
               Ibn Battuta
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.8 }}>
+            <Typography variant="body2" sx={{ opacity: 0.8, mr: 2 }}>
               Automated Travel Booking
             </Typography>
+            <IconButton
+              color="inherit"
+              onClick={() => setSettingsOpen(true)}
+              sx={{ ml: 1 }}
+            >
+              <SettingsIcon />
+            </IconButton>
           </Toolbar>
         </AppBar>
+
+        <SettingsDrawer
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
 
         <Container maxWidth="xl" sx={{ mt: 4 }}>
           <SearchForm onSearch={handleSearch} loading={loading} />
