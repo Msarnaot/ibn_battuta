@@ -1,0 +1,66 @@
+# Travel Preferences Configuration
+
+flight_preferences:
+  # Seat preferences
+  seat_type: "aisle"
+  seat_location: "front"  # front, middle, back
+  avoid_washrooms: true
+
+  # Flight preferences
+  prefer_nonstop: true
+  max_distance_from_home_km: 100  # Maximum distance from departure location
+  max_distance_from_destination_km: 100  # Maximum distance from destination
+
+  # Business class upgrade criteria
+  business_class_upgrade:
+    enabled: true
+    min_flight_duration_hours: 2
+    max_price_difference_percent: 30  # Will upgrade if business is within 30% of economy
+
+hotel_preferences:
+  # Preferred hotel chains (in order of preference)
+  preferred_chains:
+    - "Holiday Inn"
+    - "Hilton"
+    - "Marriott"
+    - "Citizen M"
+    - "Hyatt"
+    - "Sheraton"
+
+  # Review criteria
+  min_rating: 4.0
+  min_reviews: 50
+  exclude_if_bad_reviews: true
+  bad_review_threshold: 3.0  # Any review rated below this is considered "bad"
+
+  # Location preferences
+  prefer_urban: true
+  safety_priority: high  # high, medium, low
+
+  # Transportation
+  max_uber_distance_km: 20  # Maximum distance from customer location
+  consider_car_rental_if_beyond_km: 30  # Suggest car rental if customer is this far
+
+restaurant_preferences:
+  # Dietary requirements
+  halal_only: true
+
+  # Restaurant style
+  style:
+    - "upscale"
+    - "fine dining"
+    - "contemporary"
+
+  min_rating: 4.0
+  max_results: 10
+
+activity_preferences:
+  categories:
+    - "cultural attractions"
+    - "museums"
+    - "architecture"
+    - "entertainment"
+    - "nightlife"
+
+  max_distance_from_hotel_km: 5
+  max_results: 8
