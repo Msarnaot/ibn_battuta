@@ -253,6 +253,18 @@ class FlightSearcher:
         """
         score = 50.0  # Base score
 
+        # Aeroplan airline prioritization (+20 points for Star Alliance)
+        if self.config['flight_preferences'].get('aeroplan_member', False):
+            preferred_airlines = self.config['flight_preferences'].get('preferred_airlines', [])
+            flight_carriers = flight.get('carriers', [])
+
+            # Check if any carrier is in preferred list
+            for carrier in flight_carriers:
+                if carrier in preferred_airlines:
+                    score += 20
+                    flight['is_aeroplan_friendly'] = True
+                    break
+
         # Prefer non-stop flights (+30 points)
         if flight['is_nonstop']:
             score += 30
@@ -296,6 +308,10 @@ class FlightSearcher:
     def _get_flight_recommendation(self, flight: Dict) -> str:
         """Get recommendation text for a flight"""
         recommendations = []
+
+        # Aeroplan bonus
+        if flight.get('is_aeroplan_friendly'):
+            recommendations.append("✈️ Aeroplan points eligible")
 
         if flight['is_nonstop']:
             recommendations.append("Non-stop")

@@ -23,7 +23,8 @@ class HotelSearcher:
         customer_location: str,
         check_in_date: str,
         check_out_date: str,
-        max_distance_km: Optional[int] = None
+        max_distance_km: Optional[int] = None,
+        budget_per_night: Optional[float] = None
     ) -> List[Dict]:
         """
         Search for hotels matching user preferences
@@ -34,6 +35,7 @@ class HotelSearcher:
             check_in_date: Check-in date (YYYY-MM-DD)
             check_out_date: Check-out date (YYYY-MM-DD)
             max_distance_km: Maximum distance from customer (if None, will ask user)
+            budget_per_night: Maximum budget per night in USD (if None, uses config default)
 
         Returns:
             List of hotel options sorted by best match
@@ -57,8 +59,12 @@ class HotelSearcher:
 
         print(f"   Found {len(hotels)} hotels")
 
+        # Use provided budget or default from config
+        if budget_per_night is None:
+            budget_per_night = self.config['hotel_preferences'].get('budget_per_night_usd', 300)
+
         # Filter by preferences
-        filtered_hotels = self._filter_hotels(hotels, customer_location, search_location)
+        filtered_hotels = self._filter_hotels(hotels, customer_location, search_location, budget_per_night)
 
         print(f"   {len(filtered_hotels)} hotels match your preferences")
 
@@ -177,7 +183,7 @@ class HotelSearcher:
 
         return None
 
-    def _filter_hotels(self, hotels: List[Dict], customer_location: str, search_area: str) -> List[Dict]:
+    def _filter_hotels(self, hotels: List[Dict], customer_location: str, search_area: str, budget_per_night: float) -> List[Dict]:
         """Filter hotels based on preferences and calculate scores"""
         filtered = []
         preferences = self.config['hotel_preferences']
@@ -211,8 +217,12 @@ class HotelSearcher:
                 if not is_major_city(search_area):
                     continue
 
+            # Check area preferences (coffee shops, historical, trendy)
+            area_score = self._check_area_preferences(hotel)
+            hotel['area_score'] = area_score
+
             # Calculate score
-            score = self._calculate_hotel_score(hotel, customer_distance, search_area)
+            score = self._calculate_hotel_score(hotel, customer_distance, search_area, budget_per_night)
 
             if score > 0:
                 hotel['score'] = score
@@ -249,12 +259,88 @@ class HotelSearcher:
 
         return None
 
-    def _calculate_hotel_score(self, hotel: Dict, customer_distance: Optional[float], search_area: str) -> float:
+    def _check_area_preferences(self, hotel: Dict) -> float:
+        """
+        Check if hotel area matches preferences (coffee shops, historical, trendy)
+        Returns score 0-20 based on area characteristics
+        """
+        area_score = 0.0
+        hotel_address = hotel.get('address', '').lower()
+        hotel_location = hotel.get('location', {})
+
+        if not hotel_location:
+            return 0.0
+
+        try:
+            # Search for nearby coffee shops
+            coffee_result = self.gmaps.places_nearby(
+                location=(hotel_location.get('lat'), hotel_location.get('lng')),
+                radius=500,  # 500m radius
+                keyword='specialty coffee',
+                type='cafe'
+            )
+
+            coffee_shops = len(coffee_result.get('results', []))
+            if coffee_shops >= 5:
+                area_score += 7  # Great coffee scene
+            elif coffee_shops >= 2:
+                area_score += 4  # Good coffee options
+
+            # Check for historical markers
+            historical_keywords = ['old town', 'historic', 'historical', 'heritage', 'medieval', 'ancient']
+            if any(keyword in hotel_address for keyword in historical_keywords):
+                area_score += 7  # Historical area
+
+            # Search for trendy/arts indicators
+            trendy_result = self.gmaps.places_nearby(
+                location=(hotel_location.get('lat'), hotel_location.get('lng')),
+                radius=500,
+                keyword='design boutique art',
+                type='store'
+            )
+
+            trendy_spots = len(trendy_result.get('results', []))
+            if trendy_spots >= 5:
+                area_score += 6  # Trendy area
+
+            return min(area_score, 20)  # Cap at 20 points
+
+        except Exception as e:
+            # If API fails, give partial score based on address keywords
+            if any(kw in hotel_address for kw in ['downtown', 'centre', 'historic', 'old town']):
+                return 5.0
+            return 0.0
+
+    def _calculate_hotel_score(self, hotel: Dict, customer_distance: Optional[float], search_area: str, budget_per_night: float) -> float:
         """
         Calculate hotel score (0-100) based on preferences
         Higher score = better match
         """
         score = 50.0  # Base score
+
+        # Budget check - apply penalty if over budget
+        price_level = hotel.get('price_level', 0)
+        if self.config['hotel_preferences'].get('budget_enabled', True):
+            # Rough price level to USD conversion
+            # price_level: 0 = free, 1 = $, 2 = $$, 3 = $$$, 4 = $$$$
+            estimated_price = {
+                0: 0,
+                1: 100,
+                2: 150,
+                3: 250,
+                4: 400
+            }.get(price_level, 200)
+
+            if estimated_price > budget_per_night:
+                # Over budget - apply penalty
+                over_budget_pct = ((estimated_price - budget_per_night) / budget_per_night) * 100
+                penalty = min(over_budget_pct / 2, 30)  # Up to -30 points
+                score -= penalty
+                hotel['over_budget'] = True
+            else:
+                # Within budget - bonus
+                score += 5
+                hotel['over_budget'] = False
 
         # Rating scoring (up to +30 points)
         rating = hotel['rating']
@@ -276,7 +362,12 @@ class HotelSearcher:
         for chain in preferred_chains:
             if chain in hotel_name_lower:
                 score += 15
+                hotel['is_preferred_chain'] = True
                 break
+
+        # Area preferences bonus (coffee shops, historical, trendy) - up to +20 points
+        area_score = hotel.get('area_score', 0)
+        score += area_score
 
         # Distance scoring
         if customer_distance:
@@ -294,7 +385,6 @@ class HotelSearcher:
                     score -= 20
 
         # Price level scoring (mid-range preferred for business travel)
-        price_level = hotel.get('price_level', 0)
         if price_level == 3:  # Mid-high range (ideal for business)
             score += 10
         elif price_level == 4:  # Luxury
@@ -312,14 +402,22 @@ class HotelSearcher:
         """Get recommendation text for a hotel"""
         recommendations = []
 
-        # Preferred chain
-        hotel_name_lower = hotel['name'].lower()
-        preferred_chains = [chain.lower() for chain in self.config['hotel_preferences']['preferred_chains']]
+        # Budget status
+        if hotel.get('over_budget'):
+            recommendations.append("⚠️ Over budget")
+        elif not hotel.get('over_budget', True):
+            recommendations.append("💰 Within budget")
 
-        for chain in preferred_chains:
-            if chain in hotel_name_lower:
-                recommendations.append(f"Preferred chain: {chain.title()}")
-                break
+        # Preferred chain
+        if hotel.get('is_preferred_chain'):
+            recommendations.append("⭐ Preferred chain")
+
+        # Area preferences
+        area_score = hotel.get('area_score', 0)
+        if area_score >= 15:
+            recommendations.append("☕ Great area (coffee + culture)")
+        elif area_score >= 10:
+            recommendations.append("☕ Good area")
 
         # Excellent rating
         if hotel['rating'] >= 4.5:

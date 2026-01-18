@@ -2,19 +2,30 @@
 
 Named after the famous medieval Muslim scholar and traveler Ibn Battuta, this system automates the tedious process of finding flights, hotels, and making travel plans for business trips.
 
+## 🎯 Quick Links
+
+- **[Web UI Guide](WEB_UI_README.md)** - Beautiful web interface setup
+- **[Quick Start Guide](QUICKSTART.md)** - Get running in 5 minutes
+- **CLI Usage** - See below
+
 ## Overview
 
 This automated travel booking system helps busy professionals find the best travel options based on their specific preferences. Instead of manually searching multiple websites and comparing options, you provide your departure and destination, and the system does all the work for you.
 
+**NEW!** 🎨 **Web Interface Available** - Use the beautiful React UI to search and view results. See [WEB_UI_README.md](WEB_UI_README.md)
+
 ### What It Does
 
 1. **Flight Search**: Searches for flights across multiple airports and filters based on your preferences:
+   - **✈️ Aeroplan Member Bonus**: Prioritizes Air Canada and Star Alliance partners so you keep collecting points
    - Prefers non-stop flights
    - Checks if airports are within your acceptable distance from home/destination
    - Automatically suggests business class upgrades when they're good value
    - Considers seat preferences (aisle, front of plane, away from washrooms)
 
 2. **Hotel Search**: Finds the best hotels based on:
+   - **💰 Budget Control**: Set your max budget per night ($100-$1000)
+   - **☕ Area Intelligence**: Prioritizes areas with great coffee shops, historical vibes, or trendy/new neighborhoods
    - Preferred hotel chains (Holiday Inn, Hilton, Marriott, Citizen M, etc.)
    - Google reviews and ratings
    - Distance from customer location
@@ -28,14 +39,15 @@ This automated travel booking system helps busy professionals find the best trav
 
 ## Features
 
-- ✈️ **Smart Flight Search**: Uses Amadeus API to search flights with intelligent filtering
-- 🏨 **Hotel Intelligence**: Finds hotels in safe, convenient locations with good reviews
+- ✈️ **Smart Flight Search**: Uses Amadeus API with Aeroplan prioritization
+- 🏨 **Hotel Intelligence**: Budget control + area preferences (coffee shops, historical, trendy)
 - 🍽️ **Halal-Friendly**: Prioritizes halal restaurants and dining options
 - 🗺️ **Distance-Aware**: Calculates distances and travel times using Google Maps
 - 💼 **Business-Focused**: Optimized for business travelers with comfort and efficiency in mind
 - 🎯 **Highly Customizable**: All preferences configurable via YAML file
 - 🚀 **Fast**: Runs searches in parallel for quick results
 - 📊 **Smart Scoring**: Ranks all options by how well they match your preferences
+- 🎨 **Modern Web UI**: Beautiful React interface for easy searching and browsing
 
 ## Prerequisites
 

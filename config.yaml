@@ -11,6 +11,24 @@ flight_preferences:
   max_distance_from_home_km: 100  # Maximum distance from departure location
   max_distance_from_destination_km: 100  # Maximum distance from destination
 
+  # Loyalty programs
+  aeroplan_member: true  # Prioritize Air Canada and Star Alliance partners
+
+  # Aeroplan-friendly airlines (Star Alliance + Air Canada partners)
+  preferred_airlines:
+    - "AC"  # Air Canada
+    - "UA"  # United Airlines
+    - "LH"  # Lufthansa
+    - "LX"  # Swiss
+    - "OS"  # Austrian
+    - "SK"  # SAS
+    - "TK"  # Turkish Airlines
+    - "NH"  # ANA
+    - "SQ"  # Singapore Airlines
+    - "TG"  # Thai Airways
+    - "ET"  # Ethiopian Airlines
+    - "SA"  # South African Airways
+
   # Business class upgrade criteria
   business_class_upgrade:
     enabled: true
@@ -27,6 +45,10 @@ hotel_preferences:
     - "Hyatt"
     - "Sheraton"
 
+  # Budget (per night in USD)
+  budget_per_night_usd: 300  # Maximum budget per night (can be overridden)
+  budget_enabled: true
+
   # Review criteria
   min_rating: 4.0
   min_reviews: 50
@@ -36,6 +58,22 @@ hotel_preferences:
   # Location preferences
   prefer_urban: true
   safety_priority: high  # high, medium, low
+
+  # Area characteristics (prioritize areas with these features)
+  area_preferences:
+    - "coffee shops"  # Areas with good specialty coffee culture
+    - "historical"    # Historic districts and old town areas
+    - "trendy"        # New, hip, gentrified areas
+    - "walkable"      # Pedestrian-friendly areas
+
+  # Keywords to search for near hotel
+  area_keywords:
+    - "specialty coffee"
+    - "historic district"
+    - "old town"
+    - "trendy neighborhood"
+    - "arts district"
+    - "design district"
 
   # Transportation
   max_uber_distance_km: 20  # Maximum distance from customer location
