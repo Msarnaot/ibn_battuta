@@ -6,16 +6,29 @@ import googlemaps
 from typing import List, Dict, Optional, Tuple
 from src.distance_calculator import DistanceCalculator
 from src.utils import format_distance, is_major_city
+from src.favorites_manager import FavoritesManager
+from src.google_maps_integration import SavedPlacesAnalyzer
 
 
 class HotelSearcher:
     """Search and filter hotels based on user preferences"""
 
-    def __init__(self, api_key: str, distance_calculator: DistanceCalculator, config: Dict):
+    def __init__(
+        self,
+        api_key: str,
+        distance_calculator: DistanceCalculator,
+        config: Dict,
+        favorites_manager: Optional[FavoritesManager] = None,
+        saved_places_analyzer: Optional[SavedPlacesAnalyzer] = None,
+        saved_places: Optional[List[Dict]] = None
+    ):
         """Initialize with Google Maps API key and configuration"""
         self.gmaps = googlemaps.Client(key=api_key)
         self.distance_calc = distance_calculator
         self.config = config
+        self.favorites_manager = favorites_manager or FavoritesManager()
+        self.saved_places_analyzer = saved_places_analyzer or SavedPlacesAnalyzer(api_key)
+        self.saved_places = saved_places or []
 
     def search_hotels(
         self,
@@ -41,6 +54,19 @@ class HotelSearcher:
             List of hotel options sorted by best match
         """
         print(f"\n🏨 Searching for hotels in {destination}...")
+
+        # Check for favorite hotels in this city
+        favorite_hotels = self.favorites_manager.get_favorites_by_city(destination)
+        if favorite_hotels:
+            print(f"   ⭐ Found {len(favorite_hotels)} favorite hotel(s) in this city!")
+
+        # Check for saved places in this city
+        if self.saved_places:
+            insights = self.saved_places_analyzer.format_saved_places_insights(
+                self.saved_places,
+                destination
+            )
+            print(f"   {insights}")
 
         # Determine search location
         search_location = self._determine_search_location(destination, customer_location)
@@ -217,9 +243,26 @@ class HotelSearcher:
                 if not is_major_city(search_area):
                     continue
 
+            # Check if this is a favorite hotel
+            is_favorite = self.favorites_manager.is_favorite(hotel['place_id'])
+            hotel['is_favorite'] = is_favorite
+
             # Check area preferences (coffee shops, historical, trendy)
             area_score = self._check_area_preferences(hotel)
             hotel['area_score'] = area_score
+
+            # Check proximity to saved places
+            saved_places_score = 0
+            if self.saved_places and hotel.get('location'):
+                hotel_coords = (hotel['location'].get('lat'), hotel['location'].get('lng'))
+                saved_analysis = self.saved_places_analyzer.calculate_hotel_saved_places_score(
+                    hotel_coords,
+                    self.saved_places
+                )
+                saved_places_score = saved_analysis['score']
+                hotel['saved_places_nearby'] = saved_analysis['nearby_count']
+                hotel['saved_places_score'] = saved_places_score
+                hotel['saved_places_categories'] = saved_analysis['categories']
 
             # Calculate score
             score = self._calculate_hotel_score(hotel, customer_distance, search_area, budget_per_night)
@@ -318,6 +361,18 @@ class HotelSearcher:
         """
         score = 50.0  # Base score
 
+        # FAVORITE HOTEL BONUS - Huge priority (+50 points)
+        # This ensures favorite hotels always appear at the top
+        if hotel.get('is_favorite'):
+            score += 50
+            hotel['favorite_bonus'] = True
+
+        # SAVED PLACES BONUS - Near your favorite spots (+0-50 points)
+        saved_places_score = hotel.get('saved_places_score', 0)
+        if saved_places_score > 0:
+            score += saved_places_score
+            hotel['near_saved_places'] = True
+
         # Budget check - apply penalty if over budget
         price_level = hotel.get('price_level', 0)
         if self.config['hotel_preferences'].get('budget_enabled', True):
@@ -401,6 +456,17 @@ class HotelSearcher:
     def _get_hotel_recommendation(self, hotel: Dict, customer_distance: Optional[float], search_area: str) -> str:
         """Get recommendation text for a hotel"""
         recommendations = []
+
+        # FAVORITE - Always first and most prominent
+        if hotel.get('is_favorite'):
+            recommendations.append("⭐️ YOUR FAVORITE!")
+
+        # SAVED PLACES - Near your favorite spots
+        saved_places_nearby = hotel.get('saved_places_nearby', 0)
+        if saved_places_nearby > 0:
+            categories = hotel.get('saved_places_categories', {})
+            cat_text = ', '.join(categories.keys()) if categories else 'saved places'
+            recommendations.append(f"📍 Near {saved_places_nearby} of your {cat_text}")
 
         # Budget status
         if hotel.get('over_budget'):

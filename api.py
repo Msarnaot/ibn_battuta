@@ -15,6 +15,8 @@ from src.distance_calculator import DistanceCalculator
 from src.flight_search import FlightSearcher
 from src.hotel_search import HotelSearcher
 from src.recommendations import RecommendationEngine
+from src.favorites_manager import FavoritesManager
+from src.google_maps_integration import SavedPlacesAnalyzer
 
 app = Flask(__name__, static_folder='frontend/build')
 CORS(app)
@@ -28,7 +30,22 @@ if not validate_api_keys(env_vars):
     print("ERROR: Missing required API keys. Please check your .env file.")
     exit(1)
 
+# Initialize core components
 distance_calc = DistanceCalculator(env_vars['google_maps_api_key'])
+favorites_manager = FavoritesManager()
+saved_places_analyzer = SavedPlacesAnalyzer(env_vars['google_maps_api_key'])
+
+# Load saved places if file exists
+saved_places = []
+saved_places_file = 'data/saved_places.json'
+if os.path.exists(saved_places_file):
+    try:
+        import json
+        with open(saved_places_file, 'r') as f:
+            saved_places = json.load(f)
+        print(f"✓ Loaded {len(saved_places)} saved places")
+    except Exception as e:
+        print(f"⚠ Could not load saved places: {e}")
 
 flight_searcher = FlightSearcher(
     env_vars['amadeus_api_key'],
@@ -40,7 +57,10 @@ flight_searcher = FlightSearcher(
 hotel_searcher = HotelSearcher(
     env_vars['google_maps_api_key'],
     distance_calc,
-    config
+    config,
+    favorites_manager=favorites_manager,
+    saved_places_analyzer=saved_places_analyzer,
+    saved_places=saved_places
 )
 
 recommendation_engine = RecommendationEngine(
@@ -50,6 +70,9 @@ recommendation_engine = RecommendationEngine(
 )
 
 print("✓ API initialized successfully")
+print(f"  • {favorites_manager.get_favorite_count()} favorite hotels loaded")
+if saved_places:
+    print(f"  • {len(saved_places)} saved places loaded")
 
 
 @app.route('/api/health', methods=['GET'])
@@ -271,6 +294,184 @@ def get_recommendations():
             'success': True,
             'restaurants': restaurants,
             'activities': activities
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Favorites endpoints
+@app.route('/api/favorites', methods=['GET'])
+def get_favorites():
+    """Get all favorite hotels"""
+    try:
+        favorites = favorites_manager.get_all_favorites()
+
+        return jsonify({
+            'success': True,
+            'favorites': favorites,
+            'total': len(favorites),
+            'cities': favorites_manager.get_cities_with_favorites()
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/favorites', methods=['POST'])
+def add_favorite():
+    """
+    Add a hotel to favorites
+
+    Request body:
+    {
+        "place_id": "ChIJ...",
+        "name": "Hotel Name",
+        "address": "123 Main St",
+        "city": "London",
+        "rating": 4.5,
+        "location": {"lat": 51.5074, "lng": -0.1278},
+        "notes": "Optional notes"
+    }
+    """
+    try:
+        data = request.json
+
+        # Validate required fields
+        if not data.get('place_id') or not data.get('name'):
+            return jsonify({'error': 'Missing required fields: place_id, name'}), 400
+
+        success = favorites_manager.add_hotel(data)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Hotel added to favorites',
+                'total': favorites_manager.get_favorite_count()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Hotel already in favorites'
+            }), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/favorites/<place_id>', methods=['DELETE'])
+def remove_favorite(place_id):
+    """Remove a hotel from favorites"""
+    try:
+        success = favorites_manager.remove_hotel(place_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Hotel removed from favorites',
+                'total': favorites_manager.get_favorite_count()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Hotel not found in favorites'
+            }), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/favorites/<place_id>/notes', methods=['PUT'])
+def update_favorite_notes(place_id):
+    """Update notes for a favorite hotel"""
+    try:
+        data = request.json
+        notes = data.get('notes', '')
+
+        success = favorites_manager.update_hotel_notes(place_id, notes)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Notes updated'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Hotel not found in favorites'
+            }), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Saved Places endpoints
+@app.route('/api/saved-places', methods=['GET'])
+def get_saved_places():
+    """Get all saved places"""
+    try:
+        return jsonify({
+            'success': True,
+            'saved_places': saved_places,
+            'total': len(saved_places)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/saved-places', methods=['POST'])
+def upload_saved_places():
+    """
+    Upload saved places
+
+    Request body:
+    {
+        "places": [
+            {
+                "name": "Blue Bottle Coffee",
+                "address": "123 Main St, San Francisco, CA",
+                "type": "cafe",
+                "coordinates": {"lat": 37.7749, "lng": -122.4194}
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        global saved_places
+
+        data = request.json
+        new_places = data.get('places', [])
+
+        if not new_places:
+            return jsonify({'error': 'No places provided'}), 400
+
+        # Process places
+        processed_places = saved_places_analyzer.import_saved_places(new_places)
+
+        # Merge with existing (avoid duplicates by name+address)
+        existing_keys = {(p.get('name'), p.get('address')) for p in saved_places}
+
+        for place in processed_places:
+            key = (place.get('name'), place.get('address'))
+            if key not in existing_keys:
+                saved_places.append(place)
+                existing_keys.add(key)
+
+        # Save to file
+        import json
+        os.makedirs('data', exist_ok=True)
+        with open(saved_places_file, 'w') as f:
+            json.dump(saved_places, f, indent=2)
+
+        # Update hotel searcher with new saved places
+        hotel_searcher.saved_places = saved_places
+
+        return jsonify({
+            'success': True,
+            'message': f'Added {len(processed_places)} places',
+            'total': len(saved_places)
         })
 
     except Exception as e:

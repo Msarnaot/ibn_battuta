@@ -9,15 +9,21 @@ import {
   Grid,
   Card,
   CardContent,
-  Divider
+  Divider,
+  IconButton,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import FlightIcon from '@mui/icons-material/Flight';
 import HotelIcon from '@mui/icons-material/Hotel';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import AttractionsIcon from '@mui/icons-material/Attractions';
 import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 
 function TabPanel({ children, value, index }) {
   return (
@@ -29,10 +35,82 @@ function TabPanel({ children, value, index }) {
 
 function SearchResults({ results }) {
   const [tabValue, setTabValue] = useState(0);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [favoriteHotels, setFavoriteHotels] = useState(new Set());
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
+
+  const handleFavoriteToggle = async (hotel) => {
+    const isFavorite = favoriteHotels.has(hotel.place_id);
+
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        const response = await fetch(`/api/favorites/${hotel.place_id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setFavoriteHotels(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(hotel.place_id);
+            return newSet;
+          });
+          setSnackbar({
+            open: true,
+            message: `Removed ${hotel.name} from favorites`,
+            severity: 'info'
+          });
+        }
+      } else {
+        // Add to favorites
+        const favoriteData = {
+          place_id: hotel.place_id,
+          name: hotel.name,
+          address: hotel.address,
+          city: results.search_params.destination,
+          rating: hotel.rating,
+          location: hotel.location
+        };
+
+        const response = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(favoriteData)
+        });
+
+        if (response.ok) {
+          setFavoriteHotels(prev => new Set([...prev, hotel.place_id]));
+          setSnackbar({
+            open: true,
+            message: `Added ${hotel.name} to favorites!`,
+            severity: 'success'
+          });
+        }
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error updating favorites',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Initialize favorites from results
+  React.useEffect(() => {
+    if (results && results.hotels) {
+      const favs = new Set();
+      results.hotels.forEach(hotel => {
+        if (hotel.is_favorite) {
+          favs.add(hotel.place_id);
+        }
+      });
+      setFavoriteHotels(favs);
+    }
+  }, [results]);
 
   const formatDuration = (minutes) => {
     const hours = Math.floor(minutes / 60);
@@ -190,17 +268,28 @@ function SearchResults({ results }) {
             <Grid container spacing={2}>
               {results.hotels.map((hotel, index) => (
                 <Grid item xs={12} md={6} key={index}>
-                  <Card variant="outlined" sx={{ height: '100%', '&:hover': { boxShadow: 3 } }}>
+                  <Card variant="outlined" sx={{ height: '100%', '&:hover': { boxShadow: 3 }, position: 'relative' }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                         <Typography variant="h6" sx={{ fontWeight: 600, flex: 1 }}>
                           {hotel.name}
                         </Typography>
-                        <Chip
-                          label={`${Math.round(hotel.score)}/100`}
-                          size="small"
-                          color="primary"
-                        />
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleFavoriteToggle(hotel)}
+                            sx={{
+                              color: favoriteHotels.has(hotel.place_id) ? 'error.main' : 'text.secondary'
+                            }}
+                          >
+                            {favoriteHotels.has(hotel.place_id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                          </IconButton>
+                          <Chip
+                            label={`${Math.round(hotel.score)}/100`}
+                            size="small"
+                            color="primary"
+                          />
+                        </Box>
                       </Box>
 
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -359,6 +448,22 @@ function SearchResults({ results }) {
           )}
         </TabPanel>
       </Paper>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
