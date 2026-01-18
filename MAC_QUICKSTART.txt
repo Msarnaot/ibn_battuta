@@ -1,0 +1,74 @@
+╔══════════════════════════════════════════════════════════════╗
+║         IBN BATTUTA - MACBOOK QUICK START GUIDE              ║
+╚══════════════════════════════════════════════════════════════╝
+
+📋 PREREQUISITES:
+  ☐ Homebrew installed
+  ☐ Node.js installed (brew install node)
+  ☐ Conda installed (brew install --cask miniconda)
+
+🚀 ONE-TIME SETUP (5 minutes):
+
+  1. Run setup:
+     ./setup_mac.sh
+
+  2. Add API keys to .env file:
+     nano .env
+     (Add GOOGLE_MAPS_API_KEY, AMADEUS_API_KEY, AMADEUS_API_SECRET)
+
+  3. Done!
+
+▶️  DAILY USAGE (2 seconds):
+
+  ./start.sh
+
+  Then open: http://localhost:3000
+
+⏹️  STOP:
+
+  Press Ctrl+C in the terminal
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 FULL DOCUMENTATION:
+
+  - SETUP_MAC.md - Complete Mac setup guide
+  - GETTING_STARTED_UI.md - How to use the web interface
+  - FAVORITES_AND_SAVED_PLACES.md - Advanced features
+  - README.md - Full documentation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔑 GET API KEYS:
+
+  Google Maps:
+  → https://console.cloud.google.com/
+     (Enable: Places, Distance Matrix, Geocoding APIs)
+
+  Amadeus:
+  → https://developers.amadeus.com/
+     (Create free account, create app, copy keys)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🆘 TROUBLESHOOTING:
+
+  "conda not found"
+  → brew install --cask miniconda
+  → conda init zsh
+  → Restart terminal
+
+  "npm not found"
+  → brew install node
+
+  Can't connect to server
+  → Make sure ./start.sh is running
+  → Check that both terminals show "Server started"
+
+  No search results
+  → Check API keys in .env file
+  → Verify APIs are enabled in Google Cloud Console
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Happy travels! ✈️🌍
